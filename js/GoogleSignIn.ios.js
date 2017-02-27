@@ -99,6 +99,7 @@ const GoogleSignIn = {
     const user = await RNGoogleSignIn.currentUser();
     if (!user) return null;
 
+    /*
     return new Promise((resolve, reject) => {
       const offSuccess = GoogleSignIn.onDisconnect((data) => {
         offSuccess();
@@ -112,6 +113,11 @@ const GoogleSignIn = {
       });
       RNGoogleSignIn.signOut();
     });
+    */
+
+    // edit by YousefED: the Disconnect errors above might not be raised on sign out, leaving this promise as never resolving
+    // we've now made signOut synchronous
+    RNGoogleSignIn.signOut();
   },
 
   signInSilently() {
