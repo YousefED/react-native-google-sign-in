@@ -2,16 +2,18 @@ const ReactNative = require('react-native');
 
 const {
   NativeModules,
-  NativeEventEmitter,
+  DeviceEventEmitter,
 } = ReactNative;
+
 
 const {
   RNGoogleSignIn,
-  RNGoogleSignInEvents,
 } = NativeModules;
 
-
-const emitter = new NativeEventEmitter(RNGoogleSignInEvents);
+const addListener = (eventName, fn) => {
+  const sub = DeviceEventEmitter.addListener(eventName, fn);
+  return () => sub.remove();
+};
 
 
 const GoogleSignIn = {
@@ -22,18 +24,26 @@ const GoogleSignIn = {
   wide: RNGoogleSignIn.wide,
 
   configure(config) {
-    RNGoogleSignIn.configure(config);
-    return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const offSuccess = GoogleSignIn.onApiConnected(() => {
+        offSuccess();
+        offError();
+        resolve();
+      });
+      const offError = GoogleSignIn.onApiConnectionFailed((error) => {
+        offSuccess();
+        offError();
+        reject(error);
+      });
+      RNGoogleSignIn.configure(config);
+    });
   },
 
   signIn() {
     RNGoogleSignIn.signIn();
   },
 
-  async signInPromise() {
-    const user = await RNGoogleSignIn.currentUser();
-    if (user) return GoogleSignIn.normalizeUser(user);
-
+  signInPromise() {
     return new Promise((resolve, reject) => {
       const offSuccess = GoogleSignIn.onSignIn((data) => {
         offSuccess();
@@ -51,42 +61,28 @@ const GoogleSignIn = {
 
   normalizeUser(user) {
     const {
-      userID,
+      displayName,
       email,
-      name,
-      givenName,
       familyName,
-      imageURL320,
-      imageURL640,
-      imageURL1280,
-      clientID,
-      accessToken,
-      accessTokenExpirationDate,
-      refreshToken,
+      givenName,
+      grantedScopes,
+      id,
       idToken,
-      idTokenExpirationDate,
-      accessibleScopes,
-      hostedDomain,
+      photoUrl,
       serverAuthCode,
+      accessToken,
     } = user;
 
     return {
-      userID,
+      userID: id,
       email,
-      name,
+      name: displayName,
       givenName,
       familyName,
-      photoUrl320: imageURL320,
-      photoUrl640: imageURL640,
-      photoUrl1280: imageURL1280,
-      // clientID,
+      photoUrlTiny: photoUrl,
       accessToken,
-      accessTokenExpirationDate,
-      refreshToken,
       idToken,
-      idTokenExpirationDate,
-      accessibleScopes,
-      // hostedDomain,
+      accessibleScopes: grantedScopes,
       serverAuthCode,
     };
   },
@@ -95,22 +91,27 @@ const GoogleSignIn = {
     RNGoogleSignIn.signOut();
   },
 
-  async signOutPromise() {
-    const user = await RNGoogleSignIn.currentUser();
-    if (!user) return null;
-
+  signOutPromise() {
+    /*
+    edit by YousefED: signOut is not an async operation and doesn't raise any events
+    https://github.com/joonhocho/react-native-google-sign-in/issues/16
+    
     return new Promise((resolve, reject) => {
-      const offSuccess = GoogleSignIn.onDisconnect((data) => {
+      const offSuccess = GoogleSignIn.onSignOut((data) => {
         offSuccess();
         offError();
         resolve(data);
       });
-      const offError = GoogleSignIn.onDisconnectError((error) => {
+      const offError = GoogleSignIn.onSignOutError((error) => {
         offSuccess();
         offError();
         reject(error);
       });
       RNGoogleSignIn.signOut();
+    });*/
+    RNGoogleSignIn.signOut();
+    return new Promise((resolve, reject) => {
+      resolve();      
     });
   },
 
@@ -140,37 +141,40 @@ const GoogleSignIn = {
     RNGoogleSignIn.disconnect();
   },
 
-  currentUser() {
-    return RNGoogleSignIn.currentUser();
+  onApiConnected(fn) {
+    return addListener('RNGoogleApiConnected', fn);
   },
 
-  hasAuthInKeychain() {
-    return RNGoogleSignIn.hasAuthInKeychain();
+  onApiConnectionSuspended(fn) {
+    return addListener('RNGoogleApiConnectionSuspended', fn);
+  },
+
+  onApiConnectionFailed(fn) {
+    return addListener('RNGoogleApiConnectionFailed', fn);
   },
 
   onSignIn(fn) {
-    const sub = emitter.addListener('signIn', fn);
-    return () => sub.remove();
+    return addListener('RNGoogleSignInSuccess', fn);
   },
 
   onSignInError(fn) {
-    const sub = emitter.addListener('signInError', fn);
-    return () => sub.remove();
+    return addListener('RNGoogleSignInError', fn);
+  },
+
+  onSignOut(fn) {
+    return addListener('RNGoogleSignOutSuccess', fn);
+  },
+
+  onSignOutError(fn) {
+    return addListener('RNGoogleSignOutError', fn);
   },
 
   onDisconnect(fn) {
-    const sub = emitter.addListener('disconnect', fn);
-    return () => sub.remove();
+    return addListener('RNGoogleDisconnectSuccess', fn);
   },
 
   onDisconnectError(fn) {
-    const sub = emitter.addListener('disconnectError', fn);
-    return () => sub.remove();
-  },
-
-  onDispatch(fn) {
-    const sub = emitter.addListener('dispatch', fn);
-    return () => sub.remove();
+    return addListener('RNGoogleDisconnectError', fn);
   },
 };
 
