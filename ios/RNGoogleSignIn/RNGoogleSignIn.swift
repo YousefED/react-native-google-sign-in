@@ -59,11 +59,12 @@ class RNGoogleSignIn: NSObject, GIDSignInUIDelegate {
     }
   }
   
-  @objc func signOut() {
+  @objc func signOut(_ resolve: RCTPromiseResolveBlock, reject: RCTPromiseRejectBlock) {
     // signOut is not an async operation and doesn't raise any events
-    // DispatchQueue.main.async {
+     //DispatchQueue.main.async {
       GIDSignIn.sharedInstance().signOut()
-    // }
+      resolve("done")
+   //}
   }
   
   @objc func signInSilently() {
